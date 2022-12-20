@@ -5,6 +5,8 @@
 #define DATA true
 #define DASH_DURATION 3
 #define DOT_DURATION 1
+#define LETTER_DURATION 3
+#define WORD_DURATION 7	
 #define TU 100
 
 long start_data, start_space;
@@ -18,7 +20,12 @@ char LETTERS[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M
 // String CODES[] = {".-", "--.."};
 // char LETTERS[] = {'A', 'Z'};
 int NLETTERS = 26; 
-
+String message = "";
+bool isEndWord = false;
+void setup() {
+  Serial.begin(9600);
+  pinMode(DATA_PIN, INPUT);
+}
 void loop() {
   // put your main code here, to run repeatedly:
   fill_arrays();
@@ -26,8 +33,10 @@ void loop() {
   
 }
 
+
 void decode_letter(){ 
   for(int i=0; i < index; i++){ 
+    bool isEditing = false;
     if (duration[i] == DASH_DURATION and color[i] == SPACE){ 
       String code = ""; 
       for (int j=0; j < i; j++){ 
@@ -42,10 +51,23 @@ void decode_letter(){
       duration[i] = 0; 
       for (int iletter=0; iletter < NLETTRERS; iletter++){ 
         if (code == CODES[iletter]){ 
-          Serial.println(LETTERS[iletter]); 
+            isEditing = true;
+            message += LETTERS[iletter];
+            Serial.print(message);
         } 
       } 
-    } 
+    }
+    if (isEditing && isEndWord)	
+    {
+      Serial.print("\n");	
+      index = 0;	
+      isEndWord = false;	
+    }
+  }
+  if (isEditing)	
+  {
+  	index = 0;
+    message = "";
   } 
 }
 
@@ -58,11 +80,21 @@ void fill_arrays(){
     color[index] = SPACE; 
     index++; 
   } 
-  if (current == SPACE_LEVEL and previous == DATA_LEVEL){ 
+  else if (current == SPACE_LEVEL and previous == DATA_LEVEL){ 
+    isEndWord = false;
     start_space = millis(); 
     duration[index] = int((millis() - start_data + 0.5 * TU) / TU); 
     color[index] = DATA; 
     index++; 
   } 
+  else if (isEndWord == false && current == SPACE_LEVEL && previous == SPACE_LEVEL){	// Условие для обнаружения паузы (конца передачи данных) после передачи данных
+    long temp = millis() - start_space;	// фиксируем время
+    if (temp > TU * WORD_DURATION)	// Если время больше, чем длительность паузы
+    {
+    	isEndWord = true;
+    	duration[index] = WORD_DURATION;
+      	index++;	//  Сдвиг буфера, чтобы вывести последнюю букву
+  	}
+  }
   previous = current; 
 }
